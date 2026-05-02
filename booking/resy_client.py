@@ -17,6 +17,7 @@ import requests
 from django.conf import settings
 
 from .schemas import SlotInfo
+from .tools import VenueSearchResult, VenueNotFoundError, call_venue_search
 
 log = logging.getLogger(__name__)
 
@@ -34,9 +35,10 @@ class ResyAuthError(ResyError):
 
 
 class ResyClient:
-    def __init__(self):
+    def __init__(self, auth_token: str | None = None):
         api_key = settings.RESY_API_KEY
-        auth_token = settings.RESY_AUTH_TOKEN
+        if auth_token is None:
+            auth_token = settings.RESY_AUTH_TOKEN
 
         if not api_key or not auth_token:
             raise ResyAuthError(
@@ -47,11 +49,28 @@ class ResyClient:
         self._session.headers.update({
             'Authorization': f'ResyAPI api_key="{api_key}"',
             'X-Resy-Auth-Token': auth_token,
+            # Required by the venue-search endpoint; defaults to the user auth token.
+            'X-Resy-Universal-Auth': settings.RESY_UNIVERSAL_AUTH or auth_token,
             'User-Agent': settings.RESY_USER_AGENT,
             'Accept': 'application/json, text/plain, */*',
             'Origin': 'https://resy.com',
             'Referer': 'https://resy.com/',
         })
+
+    def search_venues(self, query: str, lat: float, lon: float) -> VenueSearchResult:
+        """
+        Search for a Resy venue by name and return the top hit.
+
+        Raises:
+            VenueNotFoundError: No results for the query.
+            ResyAuthError:      Credentials rejected by Resy.
+            ResyError:          Any other non-2xx Resy response.
+        """
+        try:
+            return call_venue_search(self._session, query, lat, lon)
+        except requests.HTTPError as exc:
+            self._raise_for_resy_error(exc.response)
+            raise  # unreachable; satisfies type checker
 
     def find_slots(self, venue_id: int, party_size: int, reservation_date: date) -> list[SlotInfo]:
         params = {

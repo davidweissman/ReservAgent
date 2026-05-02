@@ -31,16 +31,31 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'booking',
+    'rest_framework',
+    'drf_spectacular',
 ]
 
 # Resy credentials — set these in the environment or a .env file before running.
 RESY_API_KEY = os.environ.get('RESY_API_KEY', '')
+# RESY_AUTH_TOKEN is kept for the legacy POST /api/book/ endpoint; new code uses
+# ResyAuthService which obtains tokens dynamically via RESY_EMAIL + RESY_PASSWORD.
 RESY_AUTH_TOKEN = os.environ.get('RESY_AUTH_TOKEN', '')
+RESY_EMAIL = os.environ.get('RESY_EMAIL', '')
+RESY_PASSWORD = os.environ.get('RESY_PASSWORD', '')
 RESY_USER_AGENT = os.environ.get(
     'USER_AGENT',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
     '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
 )
+# Static anonymous-session token sent on every Resy request (even pre-login).
+# Must be a separate value — do NOT derive from RESY_AUTH_TOKEN, as ResyAuthService
+# uses it during the login call before a user token exists.
+RESY_UNIVERSAL_AUTH = os.environ.get('RESY_UNIVERSAL_AUTH', '')
+
+# Anthropic — required for the Pydantic AI booking agent.
+# pydantic-ai reads ANTHROPIC_API_KEY from the environment automatically;
+# exposing it here keeps all credential loading in one place.
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -118,6 +133,17 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'ReservAgent API',
+    'DESCRIPTION': 'Natural-language restaurant reservation API powered by Resy.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
 
 LOGGING = {
     'version': 1,

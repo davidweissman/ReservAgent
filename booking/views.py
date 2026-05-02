@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from .models import BookingLog
 from .resy_client import ResyClient, ResyAuthError, ResyError, pick_closest_slot
 from .schemas import BookingRequest
+from .services import ResyAuthService
 
 log = logging.getLogger(__name__)
 
@@ -49,7 +50,8 @@ class BookReservationView(View):
         )
 
         try:
-            client = ResyClient()
+            auth_token = ResyAuthService.get_auth_token()
+            client = ResyClient(auth_token=auth_token)
 
             # Step 1 — find available slots
             slots = client.find_slots(req.venue_id, req.party_size, req.date)
